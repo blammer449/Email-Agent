@@ -433,7 +433,7 @@
       </div>
       <div class="form-group">
         <label>Your Email Address</label>
-        <input type="text" id="sender-email" placeholder="brent@concordpm.com" value="Blamers@concordco..." />
+        <input type="text" id="sender-email" placeholder="brent@concordpm.com" value="blammers@concordcompanies.com" />
       </div>
       <div class="form-group">
         <label>Azure Client ID</label>
@@ -451,12 +451,7 @@
         </div>
         <div class="help-text">Signs you in via Microsoft popup. Grants permission to create drafts in your Outlook.</div>
       </div>
-      <div class="form-group full">
-        <label>Your Signature Block</label>
-        <textarea id="signature" rows="3">Brent Lammers
-Business Development | Concord Property Management
-(310) 000-0000</textarea>
-      </div>
+
     </div>
   </div>
 
@@ -813,7 +808,6 @@ function slugify(s) {
 async function runAgent() {
   const anthropicKey = document.getElementById('anthropic-key').value.trim();
   const senderEmail = document.getElementById('sender-email').value.trim();
-  const signature = document.getElementById('signature').value.trim();
 
   if (!anthropicKey) { alert('Enter your Anthropic API key.'); return; }
   if (!senderEmail) { alert('Enter your email address.'); return; }
@@ -909,7 +903,7 @@ Email rules (STRICT):
 - End with a soft, specific CTA — offer a brief call or conversation
 - First person voice
 - Plain text only, no bullet points in the email body
-- Sign off: "Best," then a line break then just: [SIGNATURE]`;
+- No sign-off line — the sender's Outlook signature will append automatically`;
 
     const userPrompt = `Write a cold outreach email to ${firstName} (owner: ${g.ownerName}).
 
@@ -918,10 +912,7 @@ ${propList}
 
 Primary pain point angle: ${primaryClass.painPoint}
 Primary value prop to lead with: ${primaryClass.angle}
-${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}
-
-Replace [SIGNATURE] with exactly:
-${signature}`;
+${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}`;
 
     let emailBody;
     try {
