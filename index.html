@@ -428,8 +428,8 @@
     <div class="card-title"><span class="step">1</span> Configuration</div>
     <div class="form-grid">
       <div class="form-group">
-        <label>Anthropic API Key</label>
-        <input type="password" id="anthropic-key" placeholder="sk-ant-..." />
+        <label>Worker URL</label>
+        <input type="text" id="worker-url" placeholder="https://your-worker.your-subdomain.workers.dev" />
       </div>
       <div class="form-group">
         <label>Your Email Address</label>
@@ -806,10 +806,10 @@ function slugify(s) {
 
 // ─── MAIN AGENT ───────────────────────────────────────────────────────────────
 async function runAgent() {
-  const anthropicKey = document.getElementById('anthropic-key').value.trim();
+  const workerUrl = document.getElementById('worker-url').value.trim();
   const senderEmail = document.getElementById('sender-email').value.trim();
 
-  if (!anthropicKey) { alert('Enter your Anthropic API key.'); return; }
+  if (!workerUrl) { alert('Enter your Cloudflare Worker URL.'); return; }
   if (!senderEmail) { alert('Enter your email address.'); return; }
   if (!msAccessToken) { alert('Please sign in with Microsoft first.'); return; }
 
@@ -916,12 +916,10 @@ ${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}`;
 
     let emailBody;
     try {
-      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const aiRes = await fetch(workerUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': anthropicKey,
-          'anthropic-version': '2023-06-01'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
@@ -959,7 +957,7 @@ ${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}`;
 
     // Push to Outlook drafts via Graph
     try {
-      const draftRes = await fetch(`https://graph.microsoft.com/v1.0/users/${senderEmail}/messages`, {
+      const draftRes = await fetch('https://graph.microsoft.com/v1.0/me/messages', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
