@@ -855,6 +855,36 @@ async function runAgent() {
   let accessToken = msAccessToken;
   log('✓ Microsoft Graph ready', 'ok');
 
+  // ── Hardcoded Outlook signature ────────────────────────────────────────────
+  const signatureHtml = `
+<br>
+<table cellspacing="0" cellpadding="0" style="text-align:left;background-color:#fff;color:#24242;box-sizing:border-box;border-collapse:collapse;border-spacing:0;">
+  <tbody>
+    <tr>
+      <td style="text-align:center;padding-right:5px;padding-left:5px;vertical-align:middle;width:118px;box-sizing:border-box;">
+        <div style="text-align:center;font-family:'Segoe UI',Roboto,'Helvetica Neue',sans-serif;font-size:10pt;">
+          <img src="https://blammer449.github.io/Email-Agent/concord_logo.png" alt="Concord" width="108" height="51" style="width:108px;height:51px;">
+        </div>
+      </td>
+      <td colspan="2" style="text-align:left;border-left:1px solid #c6c6c5;padding-right:5px;padding-left:7px;vertical-align:top;box-sizing:border-box;">
+        <div style="text-align:left;font-family:'Segoe UI',Roboto,'Helvetica Neue',sans-serif;">
+          <span style="font-size:14.67px;color:#003462;"><b>Brent Lammers</b></span><br>
+          <span style="font-size:10pt;color:#242424;">Director, Business Development</span><br>
+          <span style="font-size:9pt;color:#242424;">Direct </span><span style="font-size:9pt;color:#003462;">424.363.0583</span><span style="font-size:9pt;color:#242424;"> | Office </span><span style="font-size:9pt;color:#003462;">310.551.0660</span><br>
+          <span style="font-size:10.67px;color:#3c3c3b;">449 South Beverly Drive, 1st Floor, Beverly Hills, CA 90212</span><br>
+          <span style="font-size:9pt;"><a href="https://www.concordcompanies.com/" style="color:#174e86;font-weight:bold;text-decoration:underline;">www.concordcompanies.com</a></span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="3" style="text-align:left;vertical-align:top;box-sizing:border-box;">
+        <div style="font-family:'Segoe UI',Roboto,'Helvetica Neue',sans-serif;font-size:5pt;color:#242424;"><br>. . . .</div>
+        <p style="text-align:left;line-height:0.8;margin:0;font-family:'Century Gothic',sans-serif;font-size:6.5pt;color:#9b9b9b;">NOTICE: The information contained in this electronic email and any accompanying attachment(s) is intended only for the use of the intended recipient(s) and may be confidential and/or privileged. If any reader of this communication is not an intended recipient, unauthorized use, disclosure or copying is strictly prohibited, and may be unlawful. If you have received this communication in error, please immediately notify the sender by return email, and delete the original message and all copies from your system.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>`;
+
   // ── Step 2: Loop owners ────────────────────────────────────────────────────
   const groups = Object.values(ownerGroups);
   let sent = 0, failed = 0, skipped = 0;
@@ -957,6 +987,10 @@ ${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}`;
 
     // Push to Outlook drafts via Graph
     try {
+      // Convert plain text email to HTML paragraphs and append signature
+      const emailHtml = emailBody.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('')
+        + (signatureHtml ? '<br>' + signatureHtml : '');
+
       const draftRes = await fetch('https://graph.microsoft.com/v1.0/me/messages', {
         method: 'POST',
         headers: {
@@ -966,8 +1000,8 @@ ${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}`;
         body: JSON.stringify({
           subject: subject,
           body: {
-            contentType: 'Text',
-            content: emailBody
+            contentType: 'HTML',
+            content: emailHtml
           },
           toRecipients: [{
             emailAddress: { address: g.email, name: g.ownerName }
