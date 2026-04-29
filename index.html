@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPM SCEP Email Agent</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.28.1/js/msal-browser.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --imperial: #1a3a5c;
+    --cobalt: #1e5fa8;
+    --cobalt-light: #2e73c8;
+    --accent: #c8a84b;
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface2: #f0f3f7;
+    --border: #dde3ec;
+    --text: #1a2535;
+    --text-muted: #6b7a90;
+    --success: #1a7a4a;
+    --success-bg: #eaf6ef;
+    --error: #c0392b;
+    --error-bg: #fdf0ef;
+    --warn: #c07a1a;
+    --warn-bg: #fdf6ea;
+  }
+
+  body {
+    font-family: 'Georgia', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--imperial);
+    color: white;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  header .logo {
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-family: 'Georgia', serif;
+  }
+
+  header .logo span { color: var(--accent); }
+
+  header .subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-family: 'Arial', sans-serif;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--cobalt);
+    margin-bottom: 20px;
+    font-family: 'Arial', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title .step {
+    background: var(--cobalt);
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-family: 'Arial', sans-serif;
+  }
+
+  input, textarea {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: 'Arial', sans-serif;
+    color: var(--text);
+    background: var(--surface);
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  input:focus, textarea:focus { border-color: var(--cobalt); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  input[type="password"] { letter-spacing: 2px; }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+  }
+
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--cobalt);
+    background: #eef3fb;
+  }
+
+  .upload-zone .icon { font-size: 32px; margin-bottom: 10px; }
+  .upload-zone p { font-size: 13px; color: var(--text-muted); font-family: 'Arial', sans-serif; }
+  .upload-zone strong { color: var(--cobalt); }
+
+  #file-input { display: none; }
+
+  .file-loaded {
+    background: var(--success-bg);
+    border: 1px solid #a3d9b8;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-family: 'Arial', sans-serif;
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: 'Arial', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--cobalt);
+    color: white;
+  }
+
+  .btn-primary:hover { background: var(--cobalt-light); }
+  .btn-primary:disabled { background: #9ab0cc; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { background: var(--border); }
+
+  .progress-bar {
+    background: var(--surface2);
+    border-radius: 20px;
+    height: 8px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+
+  .progress-fill {
+    background: linear-gradient(90deg, var(--cobalt), var(--cobalt-light));
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .log-area {
+    background: #0f1923;
+    border-radius: 6px;
+    padding: 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 280px;
+    overflow-y: auto;
+    color: #a8c4e0;
+    line-height: 1.7;
+  }
+
+  .log-area .log-ok { color: #4ecb82; }
+  .log-area .log-warn { color: #f0c060; }
+  .log-area .log-err { color: #f07070; }
+  .log-area .log-info { color: #7eb8f0; }
+  .log-area .log-dim { color: #5a7a96; }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-card .num {
+    font-size: 32px;
+    font-weight: bold;
+    color: var(--cobalt);
+    font-family: 'Georgia', serif;
+  }
+
+  .stat-card .lbl {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    font-family: 'Arial', sans-serif;
+    margin-top: 4px;
+  }
+
+  .alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Arial', sans-serif;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .alert-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #e8c87a; }
+  .alert-info { background: #eef3fb; color: var(--cobalt); border: 1px solid #b8cfe8; }
+  .alert-success { background: var(--success-bg); color: var(--success); border: 1px solid #a3d9b8; }
+
+  .action-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .toggle-group {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .toggle-group button {
+    padding: 8px 16px;
+    border: none;
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Arial', sans-serif;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    transition: all 0.15s;
+  }
+
+  .toggle-group button.active {
+    background: var(--cobalt);
+    color: white;
+  }
+
+  .email-preview {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .email-preview-header {
+    background: var(--surface2);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .email-preview-header .owner-name {
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .email-preview-header .meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Arial', sans-serif;
+  }
+
+  .violation-tag {
+    display: inline-block;
+    background: #fff3e0;
+    color: #c07a1a;
+    border: 1px solid #e8c87a;
+    border-radius: 3px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-family: 'Arial', sans-serif;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin: 2px;
+  }
+
+  .violation-tag.serious {
+    background: #fdf0ef;
+    color: var(--error);
+    border-color: #e8a8a3;
+  }
+
+  .email-body {
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    font-family: 'Arial', sans-serif;
+    white-space: pre-wrap;
+    color: var(--text);
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .email-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: 'Arial', sans-serif;
+    font-weight: bold;
+  }
+
+  .status-pending { background: #f0f3f7; color: var(--text-muted); }
+  .status-generating { background: #eef3fb; color: var(--cobalt); }
+  .status-sending { background: var(--warn-bg); color: var(--warn); }
+  .status-sent { background: var(--success-bg); color: var(--success); }
+  .status-error { background: var(--error-bg); color: var(--error); }
+  .status-skipped { background: #f5f5f5; color: #999; }
+
+  .hidden { display: none; }
+
+  #results-section { display: none; }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  .help-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Arial', sans-serif;
+    margin-top: 4px;
+  }
+
+  .owner-count-badge {
+    background: var(--accent);
+    color: var(--imperial);
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    font-family: 'Arial', sans-serif;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .pulsing { animation: pulse 1.2s infinite; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">CONCORD <span>|</span> PM</div>
+    <div class="subtitle">SCEP Outreach Agent</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- CONFIG -->
+  <div class="card">
+    <div class="card-title"><span class="step">1</span> Configuration</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Worker URL</label>
+        <input type="text" id="worker-url" placeholder="https://your-worker.your-subdomain.workers.dev" />
+      </div>
+      <div class="form-group">
+        <label>Your Email Address</label>
+        <input type="text" id="sender-email" placeholder="brent@concordpm.com" value="blammers@concordcompanies.com" />
+      </div>
+      <div class="form-group">
+        <label>Azure Client ID</label>
+        <input type="text" id="azure-client" value="93ed4c6c-9836-4a72-825f-3dcd55ea3bd4" />
+      </div>
+      <div class="form-group">
+        <label>Azure Tenant ID</label>
+        <input type="text" id="azure-tenant" value="ac0624d2-aefb-483b-be19-0c46921b39c2" />
+      </div>
+      <div class="form-group full">
+        <label>Microsoft Account</label>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="ms-auth-btn" onclick="authenticateMicrosoft()" type="button">🔐 Sign in with Microsoft</button>
+          <span id="ms-auth-status" style="font-size:12px; font-family:Arial,sans-serif; color:var(--text-muted);">Not signed in</span>
+        </div>
+        <div class="help-text">Signs you in via Microsoft popup. Grants permission to create drafts in your Outlook.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="card">
+    <div class="card-title"><span class="step">2</span> Upload SCEP List</div>
+    <div class="upload-zone" id="upload-zone">
+      <div class="icon">📋</div>
+      <p><strong>Drop your SCEP Excel file here</strong> or click to browse</p>
+      <p style="margin-top:6px; font-size:11px;">Expects columns: Owner Name, Contact 1 Email, Contact 2 Email, Violation Types, Property Address, Units</p>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" />
+    <div id="file-status" class="hidden" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- RUN -->
+  <div class="card" id="run-card" style="display:none;">
+    <div class="card-title">
+      <span class="step">3</span> Generate &amp; Send to Drafts
+      <span id="owner-count-badge" class="owner-count-badge" style="margin-left:8px;"></span>
+    </div>
+
+    <div class="alert alert-info">
+      ℹ️ One email per unique owner. Owners with multiple properties will have all violations consolidated. Emails land in your Outlook Drafts - nothing sends automatically.
+    </div>
+    <div class="alert alert-info" style="background:var(--warn-bg);border-color:var(--warn);">
+      ↻ <strong>Follow-ups:</strong> Scans your Sent folder for SCEP outreach sent 7+ days ago with no reply. No upload needed.
+    </div>
+
+    <div id="preview-list"></div>
+
+    <hr class="divider">
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="run-btn" onclick="runAgent()">
+        ▶ Generate &amp; Push to Drafts
+      </button>
+      <button class="btn btn-primary" id="followup-btn" onclick="runFollowUps()" style="background:var(--accent);color:var(--imperial);">
+        ↻ Generate Follow-ups
+      </button>
+      <button class="btn btn-secondary" id="reset-btn" onclick="resetAll()" style="display:none;">↺ Start Over</button>
+    </div>
+
+    <div id="progress-section" class="hidden" style="margin-top:20px;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; font-family:Arial,sans-serif; color:var(--text-muted); margin-bottom:4px;">
+        <span id="progress-label">Initializing...</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="log-area" id="log-area"></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results-section" class="card">
+    <div class="card-title"><span class="step">4</span> Results</div>
+    <div class="results-grid">
+      <div class="stat-card">
+        <div class="num" id="stat-total">0</div>
+        <div class="lbl">Owners Processed</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="stat-sent" style="color:var(--success);">0</div>
+        <div class="lbl">Drafts Created</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="stat-failed" style="color:var(--error);">0</div>
+        <div class="lbl">Failed</div>
+      </div>
+    </div>
+    <div id="final-log" class="log-area"></div>
+  </div>
+
+</div>
+
+<script>
+// ─── MSAL AUTH ────────────────────────────────────────────────────────────────
+let msalInstance = null;
+let msAccessToken = null;
+
+function getMsalInstance() {
+  const clientId = document.getElementById('azure-client').value.trim();
+  const tenantId = document.getElementById('azure-tenant').value.trim();
+  if (!clientId || !tenantId) { alert('Enter Azure Client ID and Tenant ID first.'); return null; }
+
+  if (!msalInstance) {
+    msalInstance = new msal.PublicClientApplication({
+      auth: {
+        clientId,
+        authority: `https://login.microsoftonline.com/${tenantId}`,
+        redirectUri: window.location.href.split('?')[0]
+      },
+      cache: { cacheLocation: 'sessionStorage' }
+    });
+  }
+  return msalInstance;
+}
+
+async function authenticateMicrosoft() {
+  const instance = getMsalInstance();
+  if (!instance) return;
+
+  try {
+    document.getElementById('ms-auth-status').textContent = 'Opening Microsoft login...';
+    await instance.initialize();
+    const result = await instance.loginPopup({
+      scopes: ['Mail.ReadWrite']
+    });
+    const tokenResult = await instance.acquireTokenSilent({
+      scopes: ['Mail.ReadWrite'],
+      account: result.account
+    });
+    msAccessToken = tokenResult.accessToken;
+    document.getElementById('ms-auth-status').textContent = `✓ Signed in as ${result.account.username}`;
+    document.getElementById('ms-auth-status').style.color = 'var(--success)';
+    document.getElementById('ms-auth-btn').textContent = '✓ Microsoft Connected';
+    document.getElementById('ms-auth-btn').style.borderColor = 'var(--success)';
+    // Show run card so follow-up button is accessible even without a file upload
+    document.getElementById('run-card').style.display = 'block';
+  } catch(err) {
+    document.getElementById('ms-auth-status').textContent = `Auth failed: ${err.message}`;
+    document.getElementById('ms-auth-status').style.color = 'var(--error)';
+  }
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let ownerGroups = {};
+let emailResults = [];
+
+const VIOLATION_MAP = [
+  {
+    patterns: ['mold','mould','dampness','water','moisture','leak','flood','sewage','plumbing','drain','sink','toilet','pipe'],
+    category: 'Water & Remediation',
+    painPoint: 'water intrusion and moisture issues that require remediation expertise',
+    valueProp: 'in-house remediation company (SunTrust)',
+    angle: 'We handle mold, water damage, and moisture remediation in-house through SunTrust - no third-party vendors, faster resolution, and lower cost.',
+    severity: 'serious'
+  },
+  {
+    patterns: ['fire','smoke','sprinkler','extinguisher','alarm','suppression'],
+    category: 'Fire & Safety',
+    painPoint: 'fire safety compliance issues that carry significant liability',
+    valueProp: 'in-house remediation and compliance expertise',
+    angle: 'Fire safety violations carry real liability. Our in-house team handles remediation and compliance coordination without the vendor markup or delays.',
+    severity: 'serious'
+  },
+  {
+    patterns: ['knob','tube','wiring','electric','unapproved electric','receptacle','gfi','outlet','panel'],
+    category: 'Electrical',
+    painPoint: 'electrical deficiencies that pose liability and habitability risk',
+    valueProp: 'in-house maintenance and construction team',
+    angle: 'Electrical violations are among the most liability-heavy issues in LA. Our in-house maintenance team resolves these without subcontractor delays.',
+    severity: 'serious'
+  },
+  {
+    patterns: ['construction','unapproved','illegal','permit','stop work','thp'],
+    category: 'Unpermitted Work',
+    painPoint: 'unpermitted construction creating code compliance exposure',
+    valueProp: 'in-house construction and compliance management',
+    angle: 'Unapproved construction issues require a PM with in-house construction capacity to remediate and navigate LADBS - we handle this without outside contractors.',
+    severity: 'serious'
+  },
+  {
+    patterns: ['habitability','heat','heating','appliance','insect','infestation','pest','rodent','vermin','cockroach'],
+    category: 'Habitability',
+    painPoint: 'habitability violations that expose ownership to tenant action and city penalties',
+    valueProp: 'vertically integrated operations across leasing, maintenance, and compliance',
+    angle: 'Habitability violations are a fast path to tenant complaints and city fines. Our vertically integrated ops - leasing, maintenance, accounting all in-house - keep these from compounding.',
+    severity: 'serious'
+  },
+  {
+    patterns: ['sanitation','trash','garbage','clean','debris','refuse'],
+    category: 'Sanitation',
+    painPoint: 'sanitation and cleanliness violations that reflect on management quality',
+    valueProp: 'full-service property management with in-house maintenance',
+    angle: 'Persistent sanitation violations usually signal a management execution gap. We handle everything in-house - no finger-pointing between vendors.',
+    severity: 'moderate'
+  },
+  {
+    patterns: ['foundation','structural','guardrail','handrail','stair','walk','deck','vent'],
+    category: 'Structural',
+    painPoint: 'deferred structural maintenance creating long-term capital exposure',
+    valueProp: 'in-house construction and maintenance team',
+    angle: 'Structural and foundation issues don\'t get cheaper over time. Our in-house construction team can assess and address these without third-party markups.',
+    severity: 'moderate'
+  },
+  {
+    patterns: ['paint','exterior','caulk','screen','window','door','glass','floor','covering'],
+    category: 'Deferred Maintenance',
+    painPoint: 'deferred cosmetic and surface maintenance indicating broader management gaps',
+    valueProp: 'full-service vertically integrated management',
+    angle: 'These types of violations often reflect a bandwidth problem on the management side. We run everything in-house - no outsourced maintenance coordination.',
+    severity: 'minor'
+  },
+  {
+    patterns: ['lock','double-keyed','security','access','entry'],
+    category: 'Life Safety',
+    painPoint: 'life-safety code violations carrying tenant and regulatory risk',
+    valueProp: 'experienced LA compliance management',
+    angle: 'Life safety code items carry outsized liability relative to the fix. Our team knows LAMC requirements cold and handles these proactively.',
+    severity: 'moderate'
+  },
+  {
+    patterns: ['owner contact','contact information','owner info'],
+    category: 'Owner Contact Violation',
+    painPoint: 'owner contact violations suggesting the property may be under-managed or absentee',
+    valueProp: 'local, responsive full-service management',
+    angle: 'An owner contact violation on file with the city typically signals the property needs more active local management - exactly what we provide.',
+    severity: 'moderate'
+  }
+];
+
+function classifyViolations(violationStr) {
+  const lower = (violationStr || '').toLowerCase().trim();
+  const matched = [];
+  const seen = new Set();
+  if (lower && lower !== 'nan') {
+    for (const v of VIOLATION_MAP) {
+      if (v.patterns.some(p => lower.includes(p))) {
+        if (!seen.has(v.category)) {
+          matched.push(v);
+          seen.add(v.category);
+        }
+      }
+    }
+  }
+  if (!matched.length) {
+    matched.push({
+      category: 'Code Violations',
+      painPoint: 'outstanding city code violations requiring active management attention',
+      valueProp: '24 years of LA property management experience',
+      angle: 'Outstanding SCEP violations are a signal that a property needs more active management attention. With 24 years in LA, we know how to get these resolved.',
+      severity: 'minor'
+    });
+  }
+  return matched;
+}
+
+// ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      processRows(rows, file.name);
+    } catch(err) {
+      showFileStatus(`❌ Could not read file: ${err.message}`, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processRows(rows, filename) {
+  ownerGroups = {};
+
+  for (const row of rows) {
+    const ownerName = (row['Owner Name'] || '').trim();
+    if (!ownerName) continue;
+
+    // Determine best email and matching contact name
+    const email1 = (row['Contact 1 Email'] || '').trim();
+    const email2 = (row['Contact 2 Email'] || '').trim();
+    const name1 = (row['Contact 1 Name'] || '').trim();
+    const name2 = (row['Contact 2 Name'] || '').trim();
+
+    let email, contactName;
+    if (email1) {
+      email = email1;
+      contactName = name1 || ownerName;
+    } else if (email2) {
+      email = email2;
+      contactName = name2 || ownerName;
+    } else {
+      email = '';
+      contactName = name1 || ownerName;
+    }
+
+    const key = ownerName.toLowerCase();
+    if (!ownerGroups[key]) {
+      ownerGroups[key] = {
+        ownerName,
+        email,
+        contactName,
+        properties: []
+      };
+    }
+
+    ownerGroups[key].properties.push({
+      address: row['Property Address'] || '',
+      units: row['Units'] || '',
+      violations: row['Violation Types'] || '',
+      outstandingCount: row['Outstanding Violations'] || ''
+    });
+
+    // Update email if we found one and didn't have it
+    if (!ownerGroups[key].email && email) ownerGroups[key].email = email;
+  }
+
+  const groups = Object.values(ownerGroups);
+  const noEmail = groups.filter(g => !g.email).length;
+
+  showFileStatus(`✓ Loaded ${rows.length} rows → ${groups.length} unique owners${noEmail ? ` (${noEmail} missing email - will be skipped)` : ''}`, 'ok');
+  document.getElementById('run-card').style.display = 'block';
+  document.getElementById('owner-count-badge').textContent = `${groups.length} owners`;
+
+  // Build preview
+  buildPreviewList(groups);
+}
+
+function buildPreviewList(groups) {
+  const container = document.getElementById('preview-list');
+  container.innerHTML = '';
+
+  for (const g of groups) {
+    const allViolations = g.properties.map(p => p.violations).join(', ');
+    const classifications = classifyViolations(allViolations);
+    const totalOutstanding = g.properties.reduce((s, p) => s + (parseInt(p.outstandingCount) || 0), 0);
+    const hasEmail = !!g.email;
+
+    const div = document.createElement('div');
+    div.className = 'email-preview';
+    div.id = `preview-${slugify(g.ownerName)}`;
+
+    const seriousCount = classifications.filter(c => c.severity === 'serious').length;
+
+    div.innerHTML = `
+      <div class="email-preview-header">
+        <div>
+          <div class="owner-name">${g.ownerName}</div>
+          <div class="meta" style="margin-top:3px;">
+            ${g.email || '<span style="color:var(--error);">⚠ No email - will skip</span>'} &nbsp;·&nbsp;
+            ${g.properties.length} propert${g.properties.length > 1 ? 'ies' : 'y'} &nbsp;·&nbsp;
+            ${totalOutstanding} outstanding violation${totalOutstanding !== 1 ? 's' : ''}
+          </div>
+          <div style="margin-top:6px;">
+            ${classifications.map(c => `<span class="violation-tag ${c.severity === 'serious' ? 'serious' : ''}">${c.category}</span>`).join('')}
+          </div>
+        </div>
+        <div>
+          <span class="email-status status-pending" id="status-${slugify(g.ownerName)}">● Pending</span>
+        </div>
+      </div>
+      <div class="email-body hidden" id="body-${slugify(g.ownerName)}"></div>
+    `;
+    container.appendChild(div);
+  }
+}
+
+function showFileStatus(msg, type) {
+  const el = document.getElementById('file-status');
+  el.className = type === 'ok' ? 'file-loaded' : 'alert alert-warn';
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '-');
+}
+
+// ─── MAIN AGENT ───────────────────────────────────────────────────────────────
+async function runAgent() {
+  const workerUrl = document.getElementById('worker-url').value.trim();
+  const senderEmail = document.getElementById('sender-email').value.trim();
+
+  if (!workerUrl) { alert('Enter your Cloudflare Worker URL.'); return; }
+  if (!senderEmail) { alert('Enter your email address.'); return; }
+  if (!msAccessToken) { alert('Please sign in with Microsoft first.'); return; }
+
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('progress-section').classList.remove('hidden');
+  const logArea = document.getElementById('log-area');
+  logArea.innerHTML = '';
+
+  function log(msg, cls = '') {
+    const line = document.createElement('div');
+    line.className = cls ? `log-${cls}` : '';
+    line.textContent = msg;
+    logArea.appendChild(line);
+    logArea.scrollTop = logArea.scrollHeight;
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-label').textContent = label;
+  }
+
+  function setStatus(ownerName, statusClass, label) {
+    const el = document.getElementById(`status-${slugify(ownerName)}`);
+    if (el) {
+      el.className = `email-status ${statusClass}`;
+      el.textContent = label;
+    }
+  }
+
+  function showBody(ownerName, text) {
+    const el = document.getElementById(`body-${slugify(ownerName)}`);
+    if (el) {
+      el.textContent = text;
+      el.classList.remove('hidden');
+    }
+  }
+
+  // ── Step 1: Use MSAL token ─────────────────────────────────────────────────
+  log('→ Using Microsoft Graph token...', 'info');
+  setProgress(5, 'Preparing Microsoft Graph access...');
+
+  let accessToken = msAccessToken;
+  log('✓ Microsoft Graph ready', 'ok');
+
+  // ── Step 2: Loop owners ────────────────────────────────────────────────────
+  const groups = Object.values(ownerGroups);
+  let sent = 0, failed = 0, skipped = 0;
+
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i];
+    const pct = Math.round(10 + ((i / groups.length) * 85));
+    setProgress(pct, `Processing ${i + 1} of ${groups.length}: ${g.ownerName}`);
+
+    if (!g.email) {
+      log(`⊘ Skipped ${g.ownerName} - no email`, 'warn');
+      setStatus(g.ownerName, 'status-skipped', '⊘ Skipped');
+      skipped++;
+      continue;
+    }
+
+    setStatus(g.ownerName, 'status-generating pulsing', '⟳ Generating...');
+
+    // Build violation context for prompt
+    const allViolations = g.properties.map(p => p.violations).filter(v => v && v !== 'nan').join('; ');
+    const classifications = classifyViolations(allViolations);
+    const primaryClass = classifications[0];
+    const extraAngles = classifications.slice(1).map(c => c.angle).join(' ');
+
+    const propList = g.properties.map(p =>
+      `- ${p.address} (${p.units} units, ${p.outstandingCount} outstanding violation${p.outstandingCount !== '1' ? 's' : ''}: ${p.violations})`
+    ).join('\n');
+
+    const firstName = g.contactName.split(' ')[0] || g.ownerName.split(' ')[0];
+
+    const systemPrompt = `You are drafting a cold outreach email on behalf of Brent Lammers, Business Development at Concord Property Management in Beverly Hills. Concord has 24 years of experience managing ~6,300 residential units and 720,000 sq ft of commercial across LA.
+
+Key differentiators to use selectively based on violation type:
+- In-house remediation company (SunTrust) that handles mold, water damage, fire/smoke
+- In-house maintenance and construction team, no outsourced vendors
+- Vertically integrated: leasing, maintenance, accounting, construction all under one roof
+- 24 years LA-specific compliance and SCEP experience
+
+Email rules (STRICT):
+- 4-6 sentences max. Short. Warm. Not salesy.
+- Open with a brief, specific reference to the violation situation, not generic
+- ONE value prop max, directly relevant to their specific violations
+- No hedging ("no pressure", "just reaching out", "I hope this finds you well")
+- No filler openers
+- NEVER use em dashes (the long dash). Not once. Rewrite sentences to avoid them entirely. Use commas, periods, or "and" instead.
+- End with a soft, specific CTA offering a brief call or conversation
+- First person voice
+- Plain text only, no bullet points in the email body
+- End the email with a brief closing salutation like "Best," or "Warm regards," on its own line. Do NOT put any name, title, or company name after the salutation. The signature is appended automatically.
+- DO NOT include a subject line. No "Subject:" prefix. Output ONLY the email body text starting with the greeting.`;
+
+    const userPrompt = `Write a cold outreach email to ${firstName} (owner: ${g.ownerName}).
+
+Their properties and violations:
+${propList}
+
+Primary pain point angle: ${primaryClass.painPoint}
+Primary value prop to lead with: ${primaryClass.angle}
+${extraAngles ? `Additional context if relevant: ${extraAngles}` : ''}`;
+
+    let emailBody;
+    try {
+      const aiRes = await fetch(workerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }]
+        })
+      });
+
+      const aiData = await aiRes.json();
+      if (!aiData.content || !aiData.content[0]) {
+        throw new Error(JSON.stringify(aiData));
+      }
+      emailBody = aiData.content[0].text.trim();
+      // Strip any subject line the AI might include
+      emailBody = emailBody.replace(/^Subject:.*\n*/im, '').trim();
+      // Replace all em dashes and en dashes
+      emailBody = emailBody.replace(/\u2014/g, ', ').replace(/\u2013/g, ', ').replace(/ ,/g, ',');
+      // Keep the closing salutation (e.g. "Best,") but strip any name/title/company lines after it
+      emailBody = emailBody.replace(/(\n(?:Best regards|Sincerely|Warm regards|Kind regards|Regards|All the best|Cheers|Kindly|Best|Warmly),?\s*)\n+.+$/is, '$1').trim();
+      // Strip standalone name/title block at the end if no salutation preceded it
+      emailBody = emailBody.replace(/\n+Brent(?:\s+Lammers)?(?:\n.*)*$/i, '').trim();
+      emailBody = emailBody.replace(/\n*Concord Property Management\s*$/i, '').trim();
+      emailBody = emailBody.replace(/\n*Business Development\s*$/i, '').trim();
+    } catch(err) {
+      log(`✗ AI generation failed for ${g.ownerName}: ${err.message}`, 'err');
+      setStatus(g.ownerName, 'status-error', '✗ AI Error');
+      failed++;
+      continue;
+    }
+
+    // Show preview
+    showBody(g.ownerName, emailBody);
+    setStatus(g.ownerName, 'status-sending pulsing', '⟳ Sending to drafts...');
+
+    // Build subject
+    const subjectMap = {
+      'Water & Remediation': 'Re: Property Management - Remediation Support',
+      'Fire & Safety': 'Re: Property Management - Fire Safety Compliance',
+      'Electrical': 'Re: Property Management - Electrical Compliance',
+      'Unpermitted Work': 'Re: Property Management - Construction Compliance',
+      'Habitability': 'Re: Property Management - Habitability Compliance',
+    };
+    const subject = subjectMap[primaryClass.category] || 'Re: Your LA Properties - Concord Property Management';
+
+    // Push to Outlook drafts via Graph
+    try {
+      // Convert plain text email to HTML paragraphs
+      const emailHtml = emailBody.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+
+      const draftRes = await fetch('https://graph.microsoft.com/v1.0/me/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subject: subject,
+          body: {
+            contentType: 'HTML',
+            content: emailHtml
+          },
+          toRecipients: [{
+            emailAddress: { address: g.email, name: g.ownerName }
+          }]
+        })
+      });
+
+      if (!draftRes.ok) {
+        const errData = await draftRes.json();
+        throw new Error(errData.error?.message || draftRes.statusText);
+      }
+
+      log(`✓ Draft created: ${g.ownerName} <${g.email}>`, 'ok');
+      setStatus(g.ownerName, 'status-sent', '✓ In Drafts');
+      sent++;
+
+    } catch(err) {
+      log(`✗ Draft failed for ${g.ownerName}: ${err.message}`, 'err');
+      setStatus(g.ownerName, 'status-error', '✗ Draft Error');
+      failed++;
+    }
+
+    // Delay between requests to stay under API rate limits (5 RPM on free tier)
+    await new Promise(r => setTimeout(r, 13000));
+  }
+
+  setProgress(100, 'Complete');
+  log('', '');
+  log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'dim');
+  log(`DONE: ${sent} drafts created · ${skipped} skipped (no email) · ${failed} errors`, sent > 0 ? 'ok' : 'warn');
+
+  // Results section
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('stat-total').textContent = groups.length;
+  document.getElementById('stat-sent').textContent = sent;
+  document.getElementById('stat-failed').textContent = failed;
+  document.getElementById('final-log').innerHTML = logArea.innerHTML;
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('reset-btn').style.display = 'inline-block';
+  document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function runFollowUps() {
+  const workerUrl = document.getElementById('worker-url').value.trim();
+  if (!workerUrl) { alert('Enter your Cloudflare Worker URL.'); return; }
+  if (!msAccessToken) { alert('Sign in with Microsoft first.'); return; }
+
+  document.getElementById('run-card').style.display = 'block';
+  document.getElementById('followup-btn').disabled = true;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('progress-section').classList.remove('hidden');
+  document.getElementById('preview-list').innerHTML = '';
+  const logArea = document.getElementById('log-area');
+  logArea.innerHTML = '';
+
+  function log(msg, cls = '') {
+    const line = document.createElement('div');
+    line.className = cls ? `log-${cls}` : '';
+    line.textContent = msg;
+    logArea.appendChild(line);
+    logArea.scrollTop = logArea.scrollHeight;
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-label').textContent = label;
+  }
+
+  const accessToken = msAccessToken;
+
+  // ── Step 1: Find SCEP emails sent 7+ days ago ─────────────────────────────
+  setProgress(5, 'Scanning Sent folder for SCEP emails...');
+  log('→ Scanning Sent folder for SCEP outreach emails...', 'info');
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const subjectPatterns = [
+    'Property Management - Remediation',
+    'Property Management - Fire Safety',
+    'Property Management - Electrical',
+    'Property Management - Construction',
+    'Property Management - Habitability',
+    'Your LA Properties - Concord'
+  ];
+
+  let sentEmails = [];
+  try {
+    // Search sent folder for emails with our subject patterns
+    const sentUrl = `https://graph.microsoft.com/v1.0/me/mailFolders/SentItems/messages?$search="subject:Property Management Concord"&$select=id,subject,toRecipients,sentDateTime,bodyPreview,conversationId&$top=100`;
+
+    const sentRes = await fetch(sentUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    if (!sentRes.ok) {
+      const errData = await sentRes.json();
+      throw new Error(errData.error?.message || sentRes.statusText);
+    }
+
+    const sentData = await sentRes.json();
+    // Filter client-side: must match our subject patterns and be 7+ days old
+    const sevenDaysAgoDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    sentEmails = (sentData.value || []).filter(email => {
+      const subj = (email.subject || '').toLowerCase();
+      const matchesPattern = subjectPatterns.some(p => subj.includes(p.toLowerCase()));
+      const oldEnough = new Date(email.sentDateTime) <= sevenDaysAgoDate;
+      return matchesPattern && oldEnough;
+    });
+    log(`✓ Found ${sentEmails.length} SCEP emails sent 7+ days ago`, 'ok');
+  } catch(err) {
+    log(`✗ Failed to scan Sent folder: ${err.message}`, 'err');
+    document.getElementById('followup-btn').disabled = false;
+    document.getElementById('run-btn').disabled = false;
+    return;
+  }
+
+  if (sentEmails.length === 0) {
+    log('⊘ No SCEP emails found that are 7+ days old. Nothing to follow up on.', 'warn');
+    setProgress(100, 'Complete');
+    document.getElementById('followup-btn').disabled = false;
+    document.getElementById('run-btn').disabled = false;
+    return;
+  }
+
+  // ── Step 2: Check which ones got replies ───────────────────────────────────
+  setProgress(20, 'Checking for replies...');
+  log('→ Checking inbox for replies...', 'info');
+
+  let needsFollowUp = [];
+
+  for (const email of sentEmails) {
+    const recipientEmail = email.toRecipients?.[0]?.emailAddress?.address;
+    const recipientName = email.toRecipients?.[0]?.emailAddress?.name || '';
+    if (!recipientEmail) continue;
+
+    try {
+      // Check if there's a reply from this recipient in our inbox
+      const replyUrl = `https://graph.microsoft.com/v1.0/me/mailFolders/Inbox/messages?$search="from:${recipientEmail}"&$select=id,receivedDateTime&$top=5`;
+
+      const replyRes = await fetch(replyUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+
+      let hasReply = false;
+      if (replyRes.ok) {
+        const replyData = await replyRes.json();
+        // Check if any reply came after we sent the original email
+        const sentDate = new Date(email.sentDateTime);
+        hasReply = (replyData.value || []).some(r => new Date(r.receivedDateTime) > sentDate);
+      }
+
+      if (!hasReply) {
+        // No reply found, also check if we already sent a follow-up
+        let alreadyFollowedUp = false;
+        try {
+          const followUpCheckUrl = `https://graph.microsoft.com/v1.0/me/mailFolders/SentItems/messages?$search="subject:Following up to:${recipientEmail}"&$select=id&$top=1`;
+          const fuRes = await fetch(followUpCheckUrl, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          if (fuRes && fuRes.ok) {
+            const fuData = await fuRes.json();
+            alreadyFollowedUp = fuData.value && fuData.value.length > 0;
+          }
+        } catch(e) {
+          // If check fails, proceed with follow-up anyway
+        }
+
+        if (!alreadyFollowedUp) {
+          needsFollowUp.push({
+            originalSubject: email.subject,
+            originalPreview: email.bodyPreview,
+            originalDate: email.sentDateTime,
+            recipientEmail,
+            recipientName,
+            conversationId: email.conversationId
+          });
+        }
+      }
+    } catch(err) {
+      // Skip this one on error
+    }
+  }
+
+  log(`✓ ${needsFollowUp.length} emails need follow-up (no reply, no prior follow-up)`, 'ok');
+
+  if (needsFollowUp.length === 0) {
+    log('⊘ All sent emails either got replies or already have follow-ups.', 'warn');
+    setProgress(100, 'Complete');
+    document.getElementById('followup-btn').disabled = false;
+    document.getElementById('run-btn').disabled = false;
+    return;
+  }
+
+  // ── Step 3: Generate follow-up emails ──────────────────────────────────────
+  let sent = 0, failed = 0;
+
+  for (let i = 0; i < needsFollowUp.length; i++) {
+    const item = needsFollowUp[i];
+    const pct = Math.round(30 + ((i / needsFollowUp.length) * 65));
+    setProgress(pct, `Follow-up ${i + 1} of ${needsFollowUp.length}: ${item.recipientName || item.recipientEmail}`);
+
+    const firstName = (item.recipientName || '').split(' ')[0] || 'there';
+    const daysSent = Math.round((Date.now() - new Date(item.originalDate).getTime()) / (1000 * 60 * 60 * 24));
+
+    const systemPrompt = `You are drafting a follow-up email on behalf of Brent Lammers, Business Development at Concord Property Management in Beverly Hills.
+
+This is a follow-up to a cold outreach email that was sent ${daysSent} days ago and received no reply. The original email was about SCEP violations on their LA properties.
+
+Follow-up rules (STRICT):
+- 2-4 sentences max. Shorter than the original.
+- Reference the original email and the specific property/violation context
+- Slightly more direct than the first email, but still warm. Not pushy.
+- Add one new piece of value or a different angle than the first email
+- Do not repeat the same value prop word for word
+- End with a clear, low-commitment CTA (e.g., "Would 10 minutes this week work?" or "Happy to share how we've helped other owners in your situation.")
+- No hedging, no filler, no "just bumping this up"
+- NEVER use em dashes. Use commas, periods, or "and" instead.
+- First person voice, plain text, no bullet points
+- End with a closing salutation like "Best," on its own line. No name or title after it.
+- Do NOT include a subject line in the body.`;
+
+    const userPrompt = `Write a follow-up to ${firstName} (${item.recipientName}).
+
+Original email subject: ${item.originalSubject}
+Original email preview: ${item.originalPreview}
+
+Keep it short. Reference the specific situation from the original email. Offer a new reason to connect.`;
+
+    let emailBody;
+    try {
+      const aiRes = await fetch(workerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 600,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }]
+        })
+      });
+
+      const aiData = await aiRes.json();
+      if (!aiData.content || !aiData.content[0]) {
+        throw new Error(JSON.stringify(aiData));
+      }
+      emailBody = aiData.content[0].text.trim();
+      emailBody = emailBody.replace(/^Subject:.*\n*/im, '').trim();
+      emailBody = emailBody.replace(/\u2014/g, ', ').replace(/\u2013/g, ', ').replace(/ ,/g, ',');
+      emailBody = emailBody.replace(/(\n(?:Best regards|Sincerely|Warm regards|Kind regards|Regards|All the best|Cheers|Kindly|Best|Warmly),?\s*)\n+.+$/is, '$1').trim();
+      emailBody = emailBody.replace(/\n+Brent(?:\s+Lammers)?(?:\n.*)*$/i, '').trim();
+      emailBody = emailBody.replace(/\n*Concord Property Management\s*$/i, '').trim();
+      emailBody = emailBody.replace(/\n*Business Development\s*$/i, '').trim();
+    } catch(err) {
+      log(`✗ Follow-up AI failed for ${item.recipientName || item.recipientEmail}: ${err.message}`, 'err');
+      failed++;
+      continue;
+    }
+
+    // Push follow-up draft
+    try {
+      const emailHtml = emailBody.split('\n').filter(l => l.trim()).map(l => `<p>${l}</p>`).join('');
+      const followUpSubject = `Following up - ${item.originalSubject.replace(/^Re:\s*/i, '')}`;
+
+      const draftRes = await fetch('https://graph.microsoft.com/v1.0/me/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subject: followUpSubject,
+          body: {
+            contentType: 'HTML',
+            content: emailHtml
+          },
+          toRecipients: [{
+            emailAddress: { address: item.recipientEmail, name: item.recipientName }
+          }]
+        })
+      });
+
+      if (!draftRes.ok) {
+        const errData = await draftRes.json();
+        throw new Error(errData.error?.message || draftRes.statusText);
+      }
+
+      log(`✓ Follow-up draft: ${item.recipientName || item.recipientEmail}`, 'ok');
+      sent++;
+    } catch(err) {
+      log(`✗ Follow-up draft failed for ${item.recipientName || item.recipientEmail}: ${err.message}`, 'err');
+      failed++;
+    }
+
+    // Delay for rate limits
+    await new Promise(r => setTimeout(r, 13000));
+  }
+
+  setProgress(100, 'Complete');
+  log('', '');
+  log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'dim');
+  log(`FOLLOW-UPS DONE: ${sent} drafts created · ${failed} errors`, sent > 0 ? 'ok' : 'warn');
+
+  document.getElementById('results-section').style.display = 'block';
+  document.getElementById('stat-total').textContent = needsFollowUp.length;
+  document.getElementById('stat-sent').textContent = sent;
+  document.getElementById('stat-failed').textContent = failed;
+  document.getElementById('final-log').innerHTML = logArea.innerHTML;
+  document.getElementById('followup-btn').disabled = false;
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('reset-btn').style.display = 'inline-block';
+}
+
+function resetAll() {
+  ownerGroups = {};
+  emailResults = [];
+  document.getElementById('file-status').classList.add('hidden');
+  document.getElementById('run-card').style.display = 'none';
+  document.getElementById('results-section').style.display = 'none';
+  document.getElementById('progress-section').classList.add('hidden');
+  document.getElementById('preview-list').innerHTML = '';
+  document.getElementById('log-area').innerHTML = '';
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('reset-btn').style.display = 'none';
+  document.getElementById('progress-fill').style.width = '0%';
+  fileInput.value = '';
+}
+</script>
+</body>
+</html>
